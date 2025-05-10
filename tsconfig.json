@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    /* Language and Environment */
+    "target": "es2020",                              /* Modern JavaScript features */
+    /* Modules */
+    "module": "commonjs",                            /* Node.js default module system */
+    "outDir": "dist",                                /* Compiled files location */
+    "esModuleInterop": true,                         /* Better compatibility with CommonJS */
+    "resolveJsonModule": true,                       /* Allow importing JSON files */
+    "forceConsistentCasingInFileNames": true,        /* Avoid import casing issues */
+    "strict": true,                                  /* Enable all strict checks */
+    "skipLibCheck": true                             /* Skip type checking of libraries */
+  },
+  "include": ["src/**/*", "index.ts"]                /* Ensure index.ts is compiled */
+}
