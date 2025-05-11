@@ -20,7 +20,7 @@ const s3Client = new S3Client({
 export const putObject = async (fileData: UploadFiles) => {
 	try {
 		const { fileType, fileName, contentType, userId, uuid } = fileData;
-		console.log("file data ", fileType)
+		// console.log("file data ", fileType)
 		const command = new PutObjectCommand({
 			Bucket: process.env.BucketName!,
 			Key: `uploads/users/${userId}/${uuid + "_" + fileName}`,
@@ -31,7 +31,7 @@ export const putObject = async (fileData: UploadFiles) => {
 		// 	success:true,
 		// 	signedUrl: url
 		// }
-		console.log("new url ", url);
+		// console.log("new url ", url);
 		// return url
 		return { error: false, signedUrl: url , message: "File url generated successfully" }
 	} catch (error: any) {

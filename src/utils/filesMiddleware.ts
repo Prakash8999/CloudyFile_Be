@@ -5,11 +5,25 @@ const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'ima
 ]
 
 
-export const validateContentType = (type: string) => {
+export const validateContentType = (type: string, name: string) => {
 	if (!allowedTypes.includes(type)) {
 		return {
 			error: true,
 			message: `Invalid file type: ${type}`
+		}
+	}
+	const invalidChars = /[\/\\?%*:|"<>]/;
+	if (invalidChars.test(name)) {
+		return {
+			error: true,
+			message: `Invalid file name: Contains unsupported special characters`
+		};
+	}
+
+	if (name.length > 100) {
+		return {
+			error: true,
+			message: `Invalid file name: File name should not be more than 100 characters`
 		}
 	}
 	return { error: false, message: '' }

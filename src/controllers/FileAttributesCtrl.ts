@@ -9,13 +9,13 @@ import { putObject } from "../utils/s3Client";
 import { v4 as uuidv4 } from 'uuid';
 import { validateContentType } from "../utils/filesMiddleware";
 
-const fileUuid = uuidv4()
+
 
 // export const insertFileData = async (req: CustomRequest, res: Response) => {
 // 	try {
 // 		const validatedData = fileAttributesSchema.parse(req.body)
 // 		const addData = {
-// 			...validatedData,
+	// 			...validatedData,
 // 			userId: req.user?.userId,
 // 			createdAt: new Date(),
 // 			updatedAt: new Date()
@@ -25,11 +25,11 @@ const fileUuid = uuidv4()
 // 		return
 // 	}
 // 	catch (error: any) {
-// 		console.log("Error during file insertion ", error)
-// 		if (error instanceof z.ZodError) {
-// 			const erroMessage = error.errors[0]?.message || "Invalid request body"
-// 			errorHandler(res, erroMessage, 400, [])
-// 			return
+	// 		console.log("Error during file insertion ", error)
+	// 		if (error instanceof z.ZodError) {
+		// 			const erroMessage = error.errors[0]?.message || "Invalid request body"
+		// 			errorHandler(res, erroMessage, 400, [])
+		// 			return
 // 		}
 // 		errorHandler(res, "Internal server error", 500, error?.message)
 
@@ -39,12 +39,14 @@ const fileUuid = uuidv4()
 export const uploadFileUrl = async (req: CustomRequest, res: Response) => {
 	try {
 		const validatedData = fileAttributesSchema.parse(req.body)
-		const validateFile = validateContentType(validatedData.contentType)
+		const validateFile = validateContentType(validatedData.contentType, validatedData.fileName)
 		if (validateFile.error) {
 			const erroMessage = validateFile.message
 			errorHandler(res, erroMessage, 400, {})
 			return
 		}
+		const fileUuid = uuidv4()
+		console.log(fileUuid)
 		const userId = req.user?.userId!
 		const fileData: UploadFiles = {
 			fileName: validatedData.fileName,
@@ -74,7 +76,7 @@ export const uploadFileUrl = async (req: CustomRequest, res: Response) => {
 	} catch (error: any) {
 		if (error instanceof z.ZodError) {
 			const message = error.errors[0].message || "Invalid request body"
-			errorHandler(res, message, 500, {})
+			errorHandler(res, message, 400, {})
 			return
 		}
 		console.log("Error during upload url generation ", error)
@@ -83,4 +85,3 @@ export const uploadFileUrl = async (req: CustomRequest, res: Response) => {
 }
 
 
-// export const 
