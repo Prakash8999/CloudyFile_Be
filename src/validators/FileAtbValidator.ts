@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { success } from "../helper/middleware/responseStructure";
 
 export const fileAttributesSchema = z.object({
 
@@ -35,7 +36,7 @@ export const fileAttributesSchema = z.object({
 		required_error: "File extension is required",
 		invalid_type_error: "File extension must be a string"
 	}).min(1, "File extension cannot be empty"),
-	
+
 
 	// isArchived: z.boolean({
 	// 	required_error: "IsArchived is required",
@@ -51,12 +52,12 @@ export const fileAttributesSchema = z.object({
 	// 	invalid_type_error: "IsDeleted must be a boolean"
 	// }).default(false),
 
-	
+
 	mimeType: z.string({
 		invalid_type_error: "Mime type must be a string"
 	}).optional(),
 
-	
+
 	tags: z.array(z.any(), {
 		invalid_type_error: "Tags must be an array"
 	}).optional(),
@@ -77,9 +78,26 @@ export const fileAttributesSchema = z.object({
 
 
 export const fileUrlSchema = z.object({
-	fileSize : z.number(),
+	fileSize: z.number(),
 	fileType: z.string(),
 	fileName: z.string(),
-	userId : z.number(),
-	
+	userId: z.number(),
+
+})
+
+
+
+export const uploadConfirmSchema = z.object({
+
+
+	success: z.boolean({
+		required_error: "Success status is required"
+	}),
+
+	fileId: z.number({
+		required_error: "File id is required",
+		invalid_type_error: "File size must be a number"
+	}).nonnegative("File size cannot be negative"),
+	// s3Key: z.string({ required_error: "File key is required" }).trim().min(3, { message: "File key must be at least 3 characters long" }),
+
 })

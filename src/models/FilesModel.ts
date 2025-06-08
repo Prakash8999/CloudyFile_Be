@@ -22,6 +22,17 @@ export const FileAttributes = sequelize.define('FileAttributes', {
 		allowNull: true,
 		field: 'dimensions'
 	},
+	thumbnailUrl: {
+		type: DataTypes.STRING,
+		allowNull: true,
+		field: 'thumbnail_url'
+	},
+	thumbnailKey: {
+		type: DataTypes.STRING,
+		allowNull: true,
+		field: 'thumbnail_key'
+	},
+
 	s3Key: {
 		type: DataTypes.STRING,
 		allowNull: false,
@@ -37,12 +48,12 @@ export const FileAttributes = sequelize.define('FileAttributes', {
 		allowNull: false,
 		field: 'file_type'
 	},
-	fileExtension:{
+	fileExtension: {
 		type: DataTypes.STRING,
 		allowNull: false,
 		field: 'file_extension'
 	},
-	isArchived:{
+	isArchived: {
 		type: DataTypes.BOOLEAN,
 		allowNull: false,
 		field: 'is_archived',
@@ -54,47 +65,55 @@ export const FileAttributes = sequelize.define('FileAttributes', {
 		field: 'is_favorite',
 	},
 
-	isDeleted:{
+	isDeleted: {
 		type: DataTypes.BOOLEAN,
 		allowNull: false,
 		field: 'is_deleted',
 		defaultValue: false
 	},
 	deletedAt: {
-		type:DataTypes.DATE,
+		type: DataTypes.DATE,
 		allowNull: true,
 		field: 'deleted_at',
 	},
-	mimeType:{
+	mimeType: {
 		type: DataTypes.STRING,
 		allowNull: true,
 		field: 'mime_type',
 	},
-	createdAt:{
+	createdAt: {
 		type: DataTypes.DATE,
 		allowNull: false,
 		field: 'created_at'
 	},
-	updatedAt:{
+	updatedAt: {
 		type: DataTypes.DATE,
 		allowNull: false,
 		field: 'updated_at'
 	},
 
-// future part
-	tags:{
-		type:DataTypes.ARRAY(DataTypes.STRING),
-		allowNull:true
+	// future part
+	tags: {
+		type: DataTypes.ARRAY(DataTypes.STRING),
+		allowNull: true
 	},
-	caption:{
-		type:DataTypes.STRING,
-		allowNull:true
+	caption: {
+		type: DataTypes.STRING,
+		allowNull: true
 	},
-	embeddingVector:{
-		type:DataTypes.STRING,
-		allowNull:true
+	embeddingVector: {
+		type: DataTypes.STRING,
+		allowNull: true
 	}
-},{
-	tableName:"file_attributes",
+}, {
+	tableName: "file_attributes",
 	timestamps: false,
 })
+
+
+
+// export const Thumbnail = sequelize.define('thumbnail',{
+// 	fileId:{
+
+// 	}
+// })

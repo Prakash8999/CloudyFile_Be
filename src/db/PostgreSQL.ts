@@ -8,5 +8,16 @@ export const dbConnection = {
 		host:'localhost',
 		database: 'cloudyfile',
 		port:5432
-	}
+	},
+
+	// postgresql://postgres:[YOUR-PASSWORD]@db.uyklwqnzzlxsgugjqcoh.supabase.co:5432/postgres
+	 supabase: {
+    username: 'postgres',
+    password: 'Fj3dE3FVj$iHfdD',
+    host: 'db.uyklwqnzzlxsgugjqcoh.supabase.co',
+    database: 'Cloudyfile',
+    port: 5432,
+    dialect: 'postgres' as Dialect,
+    ssl: true,
+  },
 }
