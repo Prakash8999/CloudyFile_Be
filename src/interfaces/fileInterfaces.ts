@@ -5,3 +5,4 @@ export interface UploadFiles {
 	userId: number,
 	uuid: string,
 }
+

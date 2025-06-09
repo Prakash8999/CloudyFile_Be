@@ -1,5 +1,5 @@
 import { CustomRequest } from "../helper/middleware/authUser";
-import { Response } from "express";
+import { Request, Response } from "express";
 import { fileAttributesSchema, uploadConfirmSchema } from "../validators/FileAtbValidator";
 import { FileAttributes } from "../models/FilesModel";
 import { errorHandler, successHandler } from "../helper/middleware/responseHandler";
@@ -9,7 +9,9 @@ import { isFileExists, putObject } from "../utils/s3Client";
 import { v4 as uuidv4 } from 'uuid';
 import { validateContentType } from "../utils/filesMiddleware";
 import { Queue } from 'bullmq';
-import {  deleteFileData } from "../services/FileAtrSer";
+import { deleteFileData } from "../services/FileAtrSer";
+import { paginateAndSort } from "../utils/paginationUtils";
+import redisClient from "../utils/redis";
 
 
 
@@ -65,22 +67,23 @@ export const uploadFileUrl = async (req: CustomRequest, res: Response) => {
 			return
 		}
 
-			const addData = {
-				...validatedData,
-				// userId: req.user?.userId,
-				...fileData,
-				mimeType: fileData.contentType,
-				fileUid: fileUuid,
-				s3Key: `uploads/users/${userId}/${fileData.fileName+"_"+fileUuid}`,
-				createdAt: new Date(),
-				updatedAt: new Date()
-			}
-			const fileRecord = await FileAttributes.create(addData)
-			const sendData = { 
-				fileId: fileRecord.dataValues.id,
-				uploadUrl: uploadUrl.signedUrl,
-
-			}
+		const addData = {
+			...validatedData,
+			// userId: req.user?.userId,
+			...fileData,
+			mimeType: fileData.contentType,
+			fileUid: fileUuid,
+			s3Key: `uploads/users/${userId}/${fileData.fileName + "_" + fileUuid}`,
+			createdAt: new Date(),
+			updatedAt: new Date()
+		}
+		const fileRecord = await FileAttributes.create(addData)
+	const incr =	await redisClient.incr(`user:fileDataVersion:${userId}`);
+	console.log("incr ", incr)
+		const sendData = {
+			fileId: fileRecord.dataValues.id,
+			uploadUrl: uploadUrl.signedUrl,
+		}
 		successHandler(res, "Upload URL generated successfully", sendData, 200)
 		return
 	} catch (error: any) {
@@ -109,7 +112,7 @@ export const confirmFileUpload = async (req: CustomRequest, res: Response) => {
 
 		if (!validatedData.success) {
 			errorHandler(res, "Failed to upload file", 400, {});
-			await deleteFileData(validatedData.fileId, userId!);	
+			await deleteFileData(validatedData.fileId, userId!);
 			return;
 		}
 
@@ -130,7 +133,7 @@ export const confirmFileUpload = async (req: CustomRequest, res: Response) => {
 		// 		port: 6379,
 		// 	},
 		// });
-		
+
 		// await thumbnailQueue.add('generate-thumbnail', {
 		// 	fileId: validatedData.fileId,
 		// 	s3Key: responseData?.dataValues.s3Key,
@@ -142,7 +145,7 @@ export const confirmFileUpload = async (req: CustomRequest, res: Response) => {
 		successHandler(res, "File upload confirmed successfully", {}, 200);
 		return;
 
-	} catch (error:any) {
+	} catch (error: any) {
 		console.log("Error during file upload confirmation ", error);
 		if (error instanceof z.ZodError) {
 			const message = error.errors[0].message || "Invalid request body";
@@ -152,5 +155,64 @@ export const confirmFileUpload = async (req: CustomRequest, res: Response) => {
 		}
 		errorHandler(res, "Internal server error", 500, error?.message);
 		return;
+	}
+}
+
+
+
+
+
+export const readFiles = async (req: CustomRequest, res: Response) => {
+	try {
+		const {
+			page = 1,
+			limit = 20,
+			sort_by = "id",
+			sort_order = "DESC",
+			...filters
+		} = req.query;
+		const pageNum = parseInt(page as string, 10);
+		const limitNum = parseInt(limit as string, 10);
+
+		const userId = req?.user?.userId
+
+
+		const version = await redisClient.get(`user:fileDataVersion:${userId}`) || 1;
+		console.log("version ", version);
+		const key = `fileData:${userId}:${version}:${pageNum}:${limitNum}:${sort_by}:${sort_order}:${JSON.stringify(filters)}`;
+		const getData = await redisClient.get(key);
+		if (getData) {
+			const result = JSON.parse(getData);
+			if (!result || result?.data?.length === 0) {
+				errorHandler(res, "No data found", 404, []);
+				return;
+			}
+			successHandler(res, "Data read successfully", result.data, 200, result.meta);
+			return;
+		}
+
+		const readResponse = await paginateAndSort(
+			FileAttributes,
+			{ ...filters, userId, isArchived: false, isDeleted: false },
+			pageNum,
+			limitNum,
+			[["id", "DESC"]]
+		);
+
+		if (readResponse.data.length === 0) {
+			errorHandler(res, "No data found", 404, []);
+			return;
+		}
+
+		await redisClient.set(key, JSON.stringify(readResponse), { EX: 100000 }); // 7 days
+		successHandler(res, "Data read successfully...", readResponse.data, 200, readResponse.meta);
+		return;
+
+
+
+
+	} catch (error: any) {
+		console.log("Error during data read ", error);
+		errorHandler(res, "Failed to fetch data", 500, error?.message);
 	}
 }
