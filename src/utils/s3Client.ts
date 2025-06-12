@@ -28,7 +28,7 @@ export const putObject = async (fileData: UploadFiles) => {
 		// console.log("file data ", fileType)
 		const command = new PutObjectCommand({
 			Bucket: process.env.BucketName!,
-			Key: `uploads/users/${userId}/${fileName+"_"+uuid}`,
+			Key: `uploads/users/${userId}/${fileName + "_" + uuid}`,
 			ContentType: contentType,
 		})
 		const url = await getSignedUrl(s3Client, command)
@@ -122,3 +122,54 @@ export const isFileExists = async (filePath: string) => {
 
 
 // getObject("uploads/users/2/32947989-a3a3-43f5-b5c7-8b3c32cff610_smartphone-1170288_1280.png")
+
+
+
+export const getObject = async (key: string) => {
+	try {
+		const headCommand = new HeadObjectCommand({
+			Bucket: process.env.BucketName!,
+			Key: key,
+		});
+
+		const headResponse = await s3Client.send(headCommand);
+		
+		console.log("File exists:", headResponse.$metadata.httpStatusCode === 200);
+		if (headResponse.$metadata.httpStatusCode !== 200) {
+			console.log("File status:", headResponse.$metadata.httpStatusCode);
+
+			return {
+				status: 404,
+				message: "Failed to retrieve file",
+				error: true,
+				signedUrl: null
+			}
+		}
+		const command = new GetObjectCommand({
+			Bucket: process.env.BucketName!,
+			Key: key,
+		})
+
+		const readSignedUrl = await getSignedUrl(s3Client, command, {
+			expiresIn: 300 //5 minutes
+		})
+		// console.log("signed url", readSignedUrl)
+		return {
+			status: 200,
+			message: "File found",
+			error: false,
+			signedUrl: readSignedUrl
+		}
+	} catch (error: any) {
+		console.error("Error getting object:", error);
+		return {
+			status: 500,
+			message: error.message,
+			error: true,
+			signedUrl: null
+		}
+
+	}
+}
+
+// getObject("uploads/users/3/ElevenLabs_2025-04-12T15_20_06_Daniel_pre_sp97_s50_sb75_se0_b_m2.mp3_f3fa4428-04ed-4aea-aa9d-be252b42fec6")

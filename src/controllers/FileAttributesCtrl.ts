@@ -5,7 +5,7 @@ import { FileAttributes } from "../models/FilesModel";
 import { errorHandler, successHandler } from "../helper/middleware/responseHandler";
 import { number, z } from "zod";
 import { UploadFiles } from "../interfaces/fileInterfaces";
-import { isFileExists, putObject } from "../utils/s3Client";
+import { getObject, isFileExists, putObject } from "../utils/s3Client";
 import { v4 as uuidv4 } from 'uuid';
 import { validateContentType } from "../utils/filesMiddleware";
 import { Queue } from 'bullmq';
@@ -78,8 +78,8 @@ export const uploadFileUrl = async (req: CustomRequest, res: Response) => {
 			updatedAt: new Date()
 		}
 		const fileRecord = await FileAttributes.create(addData)
-	const incr =	await redisClient.incr(`user:fileDataVersion:${userId}`);
-	console.log("incr ", incr)
+		const incr = await redisClient.incr(`user:fileDataVersion:${userId}`);
+		console.log("incr ", incr)
 		const sendData = {
 			fileId: fileRecord.dataValues.id,
 			uploadUrl: uploadUrl.signedUrl,
@@ -214,5 +214,55 @@ export const readFiles = async (req: CustomRequest, res: Response) => {
 	} catch (error: any) {
 		console.log("Error during data read ", error);
 		errorHandler(res, "Failed to fetch data", 500, error?.message);
+	}
+}
+
+
+
+export const getFileSignedUrl = async (req: CustomRequest, res: Response) => {
+	try {
+
+		const userId = req?.user?.userId
+		const fileId = req.params.id
+		const readResponse = await FileAttributes.findOne({
+			where: { id: fileId, userId: userId },
+			attributes: ['id', 's3Key', 'fileName']
+		})
+		if (!readResponse) {
+			errorHandler(res, "File not found", 404, {});
+			return
+		}
+		if (!readResponse.dataValues.s3Key) {
+			errorHandler(res, "File not found", 404, {});
+			return
+		}
+
+		const key = `signedUrl:${fileId}:${userId}`
+		const signedUrlRedis = await redisClient.get(key)
+		console.log
+		if (signedUrlRedis) {
+         console.log("signedUrlRedis", signedUrlRedis)
+		 
+		successHandler(res, "File fetched successfully...",signedUrlRedis, 200);
+		return		
+		
+		}
+
+		const getSignedUrl = await getObject(readResponse.dataValues.s3Key)
+
+		if (getSignedUrl.error) {
+			errorHandler(res, "Failed to fetch file", 404, getSignedUrl.error);
+			return
+		}
+
+		await redisClient.set(key, getSignedUrl.signedUrl!, { EX: 300 }); // 7
+
+		successHandler(res, "File fetched successfully...", getSignedUrl.signedUrl, 200);
+		return
+	} catch (error:any) {
+		console.log("Error during file read ", error);
+		errorHandler(res, "Failed to fetch file", 500, error?.message);
+
+
 	}
 }
