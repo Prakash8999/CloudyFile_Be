@@ -38,8 +38,10 @@ initApp();
 
 import userRoute from './src/routes/user-route';
 import uploadRoute from './src/routes/file-route'
+import FolderRoute from './src/routes/folder-route'
 app.use(`${v1Endpoint}/user`, userRoute);
 app.use(`${v1Endpoint}/file`, uploadRoute)
+app.use(`${v1Endpoint}/folder`, FolderRoute)
 
 
 app.listen(PORT, () => {

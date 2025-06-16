@@ -1,6 +1,6 @@
 import { CustomRequest } from "../helper/middleware/authUser";
 import { Request, Response } from "express";
-import { fileAttributesSchema, uploadConfirmSchema } from "../validators/FileAtbValidator";
+import { fileAttributesSchema, fileStatus, uploadConfirmSchema } from "../validators/FileAtbValidator";
 import { FileAttributes } from "../models/FilesModel";
 import { errorHandler, successHandler } from "../helper/middleware/responseHandler";
 import { number, z } from "zod";
@@ -9,9 +9,10 @@ import { getObject, isFileExists, putObject } from "../utils/s3Client";
 import { v4 as uuidv4 } from 'uuid';
 import { validateContentType } from "../utils/filesMiddleware";
 import { Queue } from 'bullmq';
-import { deleteFileData } from "../services/FileAtrSer";
+import { deleteFileData, getFileAttributes } from "../services/FileAtrSer";
 import { paginateAndSort } from "../utils/paginationUtils";
 import redisClient from "../utils/redis";
+import { Op } from "sequelize";
 
 
 
@@ -169,13 +170,13 @@ export const readFiles = async (req: CustomRequest, res: Response) => {
 			limit = 20,
 			sort_by = "id",
 			sort_order = "DESC",
+			matchMode = "and",
 			...filters
 		} = req.query;
 		const pageNum = parseInt(page as string, 10);
 		const limitNum = parseInt(limit as string, 10);
 
 		const userId = req?.user?.userId
-
 
 		const version = await redisClient.get(`user:fileDataVersion:${userId}`) || 1;
 		console.log("version ", version);
@@ -187,13 +188,87 @@ export const readFiles = async (req: CustomRequest, res: Response) => {
 				errorHandler(res, "No data found", 404, []);
 				return;
 			}
-			successHandler(res, "Data read successfully", result.data, 200, result.meta);
+			successHandler(res, "Data fetched successfully", result.data, 200, result.meta);
 			return;
 		}
 
+
+		const baseConditions: any = {
+			userId,
+			isDeleted: true
+
+		};
+
+		if (!("isArchived" in filters)) {
+			baseConditions.isArchived = false;
+		}
+		// if (!("isDeleted" in filters)) {
+		// 	baseConditions.isDeleted = false;
+		// }
+
+		const normalizeFilters = (filters: Record<string, any>) => {
+			const result: Record<string, any> = {};
+
+			for (const [key, value] of Object.entries(filters)) {
+				if (value === "true") {
+					result[key] = true;
+				} else if (value === "false") {
+					result[key] = false;
+				} else if (!isNaN(Number(value))) {
+					result[key] = Number(value);
+				} else {
+					result[key] = value;
+				}
+			}
+
+			return result;
+		};
+
+
+
+
+		// 		// const normalizedFilters: any = {};
+		// 		const normalizedFilters = normalizeFilters(filters);
+
+		// 		// for (const [key, value] of Object.entries(filters)) {
+		// 		// 	normalizedFilters[key] = isNaN(Number(value)) ? value : Number(value);
+		// 		// }
+		// console.log(" filters ", filters, normalizedFilters);
+		// 		let whereClause;
+		// 		console.log(matchMode === "or");
+
+		// 		if (matchMode === "or") {
+		// 			const orConditions = Object.entries(normalizedFilters).map(([key, value]) => ({
+		// 				[key]: value,
+		// 			}));
+		// 			console.log("new matchMode", matchMode);
+		// 			console.log(" orConditions ", orConditions);
+
+
+		// 			whereClause = {
+		// 				...baseConditions,
+		// 				[Op.or]: orConditions,
+		// 			};
+		// 			console.log(" whereClause ", whereClause);
+		// 		} else {
+		// 			console.log("matchMode and", matchMode);
+		// 			// AND mode
+		// 			whereClause = {
+		// 				...baseConditions,
+		// 				...normalizedFilters,
+		// 			};
+		// 		}
+		if (filters.isArchived === 'true' || filters.isArchived === 'false') {
+			!!filters.isArchived
+		}
+		const newFilters = {
+			...filters,
+			userId: userId,
+			isDeleted:  filters?.isDeleted === 'true' ? !!filters.isDeleted : false,
+		}
 		const readResponse = await paginateAndSort(
 			FileAttributes,
-			{ ...filters, userId, isArchived: false, isDeleted: false },
+			newFilters,
 			pageNum,
 			limitNum,
 			[["id", "DESC"]]
@@ -204,7 +279,7 @@ export const readFiles = async (req: CustomRequest, res: Response) => {
 			return;
 		}
 
-		await redisClient.set(key, JSON.stringify(readResponse), { EX: 100000 }); // 7 days
+		await redisClient.set(key, JSON.stringify(readResponse), { EX:  600}); 
 		successHandler(res, "Data read successfully...", readResponse.data, 200, readResponse.meta);
 		return;
 
@@ -241,11 +316,11 @@ export const getFileSignedUrl = async (req: CustomRequest, res: Response) => {
 		const signedUrlRedis = await redisClient.get(key)
 		console.log
 		if (signedUrlRedis) {
-         console.log("signedUrlRedis", signedUrlRedis)
-		 
-		successHandler(res, "File fetched successfully...",signedUrlRedis, 200);
-		return		
-		
+			console.log("signedUrlRedis", signedUrlRedis)
+
+			successHandler(res, "File fetched successfully...", signedUrlRedis, 200);
+			return
+
 		}
 
 		const getSignedUrl = await getObject(readResponse.dataValues.s3Key)
@@ -259,10 +334,57 @@ export const getFileSignedUrl = async (req: CustomRequest, res: Response) => {
 
 		successHandler(res, "File fetched successfully...", getSignedUrl.signedUrl, 200);
 		return
-	} catch (error:any) {
+	} catch (error: any) {
 		console.log("Error during file read ", error);
 		errorHandler(res, "Failed to fetch file", 500, error?.message);
 
+
+	}
+}
+
+
+
+
+export const updateFavouriteStatus = async (req: CustomRequest, res: Response) => {
+	try {
+		const userId = req.user?.userId
+		if (!userId) {
+			errorHandler(res, "Unauthorized", 401, {});
+			return
+		}
+		const fileId = req.params.fileId
+		const ifExistResult = await getFileAttributes(+fileId, userId)
+		if (!ifExistResult.success) {
+			errorHandler(res, ifExistResult.message, ifExistResult.status, {})
+			return
+		}
+
+		const validatedStatus = fileStatus.parse(req.body)
+		let updateData = {}
+		if ((validatedStatus.isArchived === false || validatedStatus.isArchived === true) || (validatedStatus.isFavorite === false || validatedStatus.isFavorite === true) || (validatedStatus.isDeleted === false || validatedStatus.isDeleted === true)) {
+			updateData = { ...validatedStatus, updatedAt: new Date(), deletedAt: validatedStatus.isDeleted ? new Date() : null }
+
+		}
+
+		console.log(fileId);
+
+		const updateResponse = await FileAttributes.update(updateData, {
+			where: {
+				id: parseInt(fileId)
+			}
+		})
+		await redisClient.incr(`user:fileDataVersion:${userId}`);
+
+		successHandler(res, "Updated file status", updateResponse, 200)
+
+
+	} catch (error: any) {
+		if (error instanceof z.ZodError) {
+			const errMessage = error.errors[0].message
+			errorHandler(res, errMessage, 400, "Invalid data")
+			return
+		}
+		errorHandler(res, "Failed to update favourite status0", 500, error.message)
 
 	}
 }
