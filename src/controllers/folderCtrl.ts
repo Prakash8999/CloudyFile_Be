@@ -8,6 +8,7 @@ import { paginateAndSort } from "../utils/paginationUtils"
 import { FileAttributes } from "../models/ModelRelation"
 import redisClient from "../utils/redis"
 import { Op } from "sequelize"
+import sequelize from "../db/Connection"
 
 export const insertFolder = async (req: CustomRequest, res: Response) => {
 	try {
@@ -189,49 +190,79 @@ export const readOwnFolder = async (req: CustomRequest, res: Response) => {
 
 
 
-export const updateCtrl = async (req: CustomRequest, res: Response) => {
-	try {
-		const validatedData = folderUpdateSchema.parse(req.body)
-		const userId = req.user?.userId
-		const ifFoldexExist = await FolderModel.findOne({
-			where: {
+export const updateFolder = async (req: CustomRequest, res: Response) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const validatedData = folderUpdateSchema.parse(req.body);
+    const userId = req.user?.userId;
 
-				ownerId: userId,
-				uuid: validatedData.uuid
-			}
-		})
+    const folder = await FolderModel.findOne({
+      where: {
+        uuid: validatedData.uuid,
+        ownerId: userId
+      },
+      transaction
+    });
 
+    if (!folder) {
+      await transaction.rollback();
+      return errorHandler(res, "Folder not found", 404, "Folder not found");
+    }
 
-		if (!ifFoldexExist) {
-			errorHandler(res, "Folder not found", 404, "Folder not found");
-			return
-		}
-		const updatedData = {
-			...validatedData,
-			updatedAt: new Date(),
-		}
+    await folder.update({
+      ...validatedData,
+      updatedAt: new Date()
+    }, { transaction });
 
-		await ifFoldexExist.update(updatedData)
+    if (validatedData.fileIds && validatedData.fileIds.length > 0) {
+      const existingMaps = await FolderFileMap.findAll({
+        where: {
+          folderUuid: validatedData.uuid,
+          addedBy: userId
+        },
+        raw: true,
+        attributes: ['fileId'],
+        transaction
+      });
 
-		if (validatedData.fileIds && validatedData.fileIds.length > 0) {
-			const fileFolderMap = await FolderFileMap.findAll({
-				where: {
-					folderUuid: validatedData.uuid,
-					fileId: { [Op.in]: validatedData.fileIds },
-					addedBy: userId
-				},
-				attributes:['']
-			})
-		}
+      const existingFileIds = existingMaps.map((map:any) => map.fileId).sort();
+      const incomingFileIds = [...validatedData.fileIds].sort();
 
+      const areSame =
+        existingFileIds.length === incomingFileIds.length &&
+        existingFileIds.every((id, i) => id === incomingFileIds[i]);
 
-	} catch (error: any) {
-		if (error instanceof z.ZodError) {
-			const message = error.errors[0].message
-			errorHandler(res, message || "Invalid data", 400, message)
-			return
-		}
+      if (!areSame) {
+        await FolderFileMap.destroy({
+          where: {
+            folderUuid: validatedData.uuid,
+            addedBy: userId
+          },
+          transaction
+        });
 
-		errorHandler(res, "Failed to update folder", 500, error.message)
-	}
-}
+        const newMappings = validatedData.fileIds.map(fileId => ({
+          fileId,
+          folderUuid: validatedData.uuid,
+          addedBy: userId,
+          createdAt: new Date()
+        }));
+
+        await FolderFileMap.bulkCreate(newMappings, { transaction });
+      }
+    }
+
+    await transaction.commit();
+    successHandler(res, "Folder updated successfully", folder, 200);
+
+  } catch (error: any) {
+    await transaction.rollback();
+
+    if (error instanceof z.ZodError) {
+      const message = error.errors[0].message;
+      return errorHandler(res, message, 400, message);
+    }
+
+    errorHandler(res, "Failed to update folder", 500, error.message);
+  }
+};
