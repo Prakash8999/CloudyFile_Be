@@ -100,6 +100,7 @@ export const uploadConfirmSchema = z.object({
 	}).nonnegative("File size cannot be negative"),
 	// s3Key: z.string({ required_error: "File key is required" }).trim().min(3, { message: "File key must be at least 3 characters long" }),
 
+	folderUuid: z.string().optional(),
 })
 
 

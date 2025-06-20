@@ -8,5 +8,6 @@ router.post('/insert', authUser, insertFolder)
 router.get('/read', authUser, readFolders)
 router.get('/read/:id', authUser, readOwnFolder)
 router.patch('/update', authUser, updateFolder)
+// router.get('/files', authUser, updateFolder)
 
 export default router

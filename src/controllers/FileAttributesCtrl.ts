@@ -12,7 +12,9 @@ import { Queue } from 'bullmq';
 import { deleteFileData, getFileAttributes } from "../services/FileAtrSer";
 import { paginateAndSort } from "../utils/paginationUtils";
 import redisClient from "../utils/redis";
-import { Op } from "sequelize";
+import { literal, Op } from "sequelize";
+import { FolderFileMap, FolderModel } from "../models/FolderModel";
+import { sanitizeToYMD } from "../utils/generic";
 
 
 
@@ -141,7 +143,33 @@ export const confirmFileUpload = async (req: CustomRequest, res: Response) => {
 		// 	userId: userId,
 		// });
 
+		console.log("validatedData .folderUuid outside", validatedData.folderUuid);
 		// console.log("Thumbnail generation job added to the queue", validatedData.fileId, responseData?.dataValues.s3Key, userId);
+		if (validatedData.folderUuid?.length === 36) {
+			console.log("validatedData .folderUuid inside", validatedData.folderUuid);
+			const folder = await FolderModel.count({
+				where: {
+					uuid: validatedData.folderUuid,
+				}
+			})
+			if (folder === 0) {
+				errorHandler(res, "Folder not found", 404, "Folder not found");
+
+				return
+
+			}
+			await FolderFileMap.create({
+
+				folderUuid: validatedData.folderUuid,
+				fileId: validatedData.fileId,
+				addedBy: userId,
+				createdAt: new Date(),
+
+			})
+			await redisClient.get(`user:fileDataVersion:${userId}`) || 1;
+			await redisClient.get(`user:folderDataVersion:${userId}`) || 1;
+
+		}
 
 		successHandler(res, "File upload confirmed successfully", {}, 200);
 		return;
@@ -169,6 +197,7 @@ export const readFiles = async (req: CustomRequest, res: Response) => {
 			page = 1,
 			limit = 20,
 			sort_by = "id",
+			fileIds = "",
 			sort_order = "DESC",
 			matchMode = "and",
 			...filters
@@ -177,6 +206,7 @@ export const readFiles = async (req: CustomRequest, res: Response) => {
 		const limitNum = parseInt(limit as string, 10);
 
 		const userId = req?.user?.userId
+
 
 		const version = await redisClient.get(`user:fileDataVersion:${userId}`) || 1;
 		console.log("version ", version);
@@ -258,20 +288,52 @@ export const readFiles = async (req: CustomRequest, res: Response) => {
 		// 				...normalizedFilters,
 		// 			};
 		// 		}
+
+		// const fileIdsArr = fileIds.toString().split(",")
+		// const selectedIds = Array.isArray(fileIdsArr) ? fileIdsArr.map(id => parseInt(String(id), 10)) :  [];
+		let selectedIds: number[] = [];
+
+		if (fileIds) {
+			const rawIds = Array.isArray(fileIds)
+				? fileIds
+				: fileIds.toString().split(",");
+
+			selectedIds = rawIds
+				.map(id => parseInt(String(id), 10))
+				.filter(id => !isNaN(id));
+		}
+
 		if (filters.isArchived === 'true' || filters.isArchived === 'false') {
 			!!filters.isArchived
 		}
 		const newFilters = {
 			...filters,
 			userId: userId,
-			isDeleted:  filters?.isDeleted === 'true' ? !!filters.isDeleted : false,
+			isDeleted: filters?.isDeleted === 'true' ? !!filters.isDeleted : false,
 		}
+
+		console.log(" selectedIds ", selectedIds);
+		const orderClause: [string | any, string][] = selectedIds.length > 0
+			? [
+				[
+					literal(`
+					CASE	
+					  ${selectedIds.map((id, index) => `WHEN id = ${id} THEN ${index}`).join(' ')}
+					  ELSE ${selectedIds.length}
+					END
+				  `),
+					'ASC'
+				]
+			]
+			: [
+				[typeof sort_by === "string" ? sort_by : "id", typeof sort_order === "string" ? sort_order : "DESC"]
+			];
 		const readResponse = await paginateAndSort(
 			FileAttributes,
 			newFilters,
 			pageNum,
 			limitNum,
-			[["id", "DESC"]]
+			orderClause
 		);
 
 		if (readResponse.data.length === 0) {
@@ -279,7 +341,7 @@ export const readFiles = async (req: CustomRequest, res: Response) => {
 			return;
 		}
 
-		await redisClient.set(key, JSON.stringify(readResponse), { EX:  600}); 
+		await redisClient.set(key, JSON.stringify(readResponse), { EX: 600 });
 		successHandler(res, "Data read successfully...", readResponse.data, 200, readResponse.meta);
 		return;
 
@@ -388,3 +450,102 @@ export const updateFavouriteStatus = async (req: CustomRequest, res: Response) =
 
 	}
 }
+
+
+
+
+
+
+
+export const readFilesByDates = async (req: CustomRequest, res: Response) => {
+	try {
+		const {
+			page = 1,
+			limit = 20,
+			sort_by = "id",
+			sort_order = "DESC",
+			rawStart,
+			rawEnd,
+			matchMode = "and",
+			...filters
+		} = req.query;
+		const pageNum = parseInt(page as string, 10);
+		const limitNum = parseInt(limit as string, 10);
+
+		console.log(" req , query ", req.url)
+
+		const userId = req?.user?.userId
+
+
+		const version = await redisClient.get(`user:fileDataVersion:${userId}`) || 1;
+		const key = `fileData:${userId}:${version}:${rawStart}: ${rawEnd}: ${pageNum}:${limitNum}:${sort_by}:${sort_order}:${JSON.stringify(filters)}`;
+		const getData = await redisClient.get(key);
+		if (getData) {
+			const result = JSON.parse(getData);
+			if (!result || result?.data?.length === 0) {
+				errorHandler(res, "No data found", 404, []);
+				return;
+			}
+			successHandler(res, "Data fetched successfully", result.data, 200, result.meta);
+			return;
+		}
+
+
+		const baseConditions: any = {
+			userId,
+			isDeleted: true
+
+		};
+
+		if (!("isArchived" in filters)) {
+			baseConditions.isArchived = false;
+		}
+
+		if (filters.isArchived === 'true' || filters.isArchived === 'false') {
+			!!filters.isArchived
+		}
+
+		const sevenDaysAgo = new Date();
+		sevenDaysAgo.setDate(new Date().getDate() - 7);
+
+		const startDate = sanitizeToYMD(rawStart?.toString() || sevenDaysAgo);
+		const endDate = sanitizeToYMD(rawEnd?.toString() || new Date());
+
+		const newFilters = {
+			...filters,
+			userId: userId,
+			isDeleted: filters?.isDeleted === 'true' ? !!filters.isDeleted : false,
+			createdAt: { [Op.between]: [startDate, endDate] }
+
+		}
+
+		const readResponse = await paginateAndSort(
+			FileAttributes,
+			newFilters,
+			pageNum,
+			limitNum,
+			[["id", "DESC"]]
+		);
+
+		if (readResponse.data.length === 0) {
+			errorHandler(res, "No data found", 404, []);
+			return;
+		}
+
+		await redisClient.set(key, JSON.stringify(readResponse), { EX: 600 });
+		successHandler(res, "Data read successfully...", readResponse.data, 200, readResponse.meta);
+		return;
+
+
+
+
+	} catch (error: any) {
+		console.log("Error during data read ", error);
+		if (error.message.includes("Invalid date input")) {
+			errorHandler(res, "Failed to fetch data", 400, error?.message);
+			return
+		}
+		errorHandler(res, "Failed to fetch data", 500, error?.message);
+	}
+}
+
