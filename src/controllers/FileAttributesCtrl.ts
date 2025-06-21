@@ -1,7 +1,7 @@
 import { CustomRequest } from "../helper/middleware/authUser";
 import { Request, Response } from "express";
-import { fileAttributesSchema, fileStatus, uploadConfirmSchema } from "../validators/FileAtbValidator";
-import { FileAttributes } from "../models/FilesModel";
+import { fileAttributesSchema, fileStatus, shareLinkValidator, uploadConfirmSchema } from "../validators/FileAtbValidator";
+import { FileAttributes, SharedLink } from "../models/FilesModel";
 import { errorHandler, successHandler } from "../helper/middleware/responseHandler";
 import { number, z } from "zod";
 import { UploadFiles } from "../interfaces/fileInterfaces";
@@ -15,6 +15,7 @@ import redisClient from "../utils/redis";
 import { literal, Op } from "sequelize";
 import { FolderFileMap, FolderModel } from "../models/FolderModel";
 import { sanitizeToYMD } from "../utils/generic";
+import crypto from "crypto";
 
 
 
@@ -549,3 +550,31 @@ export const readFilesByDates = async (req: CustomRequest, res: Response) => {
 	}
 }
 
+
+
+
+export const shareLinkPublic = async (req: CustomRequest, res: Response) => {
+	try {
+		const validateData = shareLinkValidator.parse(req.body)
+		const userId = req.user?.userId
+		const token = crypto.randomBytes(32).toString("hex");
+		const addData = {
+			fileId: validateData.fileId,
+			ownerId: userId,
+			token: token,
+			createdAt: new Date(),
+			expireAt: validateData.expireAt,
+
+		}
+		await SharedLink.create(addData)
+		successHandler(res, "Link created successfully...", token, 201)
+		return;
+	} catch (error: any) {
+		if (error instanceof z.ZodError) {
+			const message = error.errors[0].message
+			errorHandler(res, message || "Invalid request body", 400, message);
+			return
+		}
+		errorHandler(res, "Failed to create share link", 500, error.message);
+	}
+}

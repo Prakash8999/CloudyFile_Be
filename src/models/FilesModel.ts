@@ -117,3 +117,37 @@ export const FileAttributes = sequelize.define('FileAttributes', {
 
 // 	}
 // })
+
+
+
+export const SharedLink = sequelize.define("sharedLink", {
+	fileId: {
+		type: DataTypes.INTEGER,
+		allowNull: false,
+		field: "file_id"
+	},
+	ownerId: {
+		type: DataTypes.INTEGER,
+		allowNull: false,
+		field: "owner_id"
+	},
+	token: {
+		type: DataTypes.STRING,
+		allowNull: false,
+		field: "token"
+	},
+	createdAt: {
+		type: DataTypes.DATE,
+		allowNull: false,
+		field: "created_at",
+		defaultValue: DataTypes.NOW
+	},
+	expireAt: {
+		type: DataTypes.DATE,
+		allowNull: true,
+		field: "expire_at"
+	}
+}, {
+	tableName: "shared_links",
+	timestamps: false,
+})

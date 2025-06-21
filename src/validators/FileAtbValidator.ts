@@ -110,3 +110,9 @@ export const fileStatus = z.object({
 	isArchived: z.boolean().optional(),
 
 })
+
+
+export const shareLinkValidator = z.object({
+	fileId:z.number({required_error: "File id is required"}).nonnegative("File size cannot be negative"),
+	expireAt : z.string().optional(),
+})
