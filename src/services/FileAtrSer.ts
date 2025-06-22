@@ -40,36 +40,10 @@ export const getFileAttributes = async (fileId: number, userId: number) => {
 
 
 
-export const getSignedUrlSer = async (fileId: number, userId: number) => {
+export const getSignedUrlSer = async (s3Key: string, fileId: number ) => {
 	try {
 
-
-		const readResponse = await FileAttributes.findOne({
-			where: { id: fileId, userId: userId },
-			attributes: ['id', 's3Key', 'fileName']
-		})
-		if (!readResponse) {
-			// errorHandler(res, "File not found", 404, {});
-
-			return {
-				error: true,
-				message: "File not found",
-				data: null,
-				status: 404
-			}
-		}
-		if (!readResponse.dataValues.s3Key) {
-			// errorHandler(res, "File not found", 404, {});
-
-			return {
-				error: true,
-				message: "File not found",
-				data: null,
-				status: 404
-			}
-		}
-
-		const key = `signedUrl:${fileId}:${userId}`
+		const key = `signedUrl:${"share"}:${fileId}`
 		const signedUrlRedis = await redisClient.get(key)
 		console.log
 		if (signedUrlRedis) {
@@ -86,11 +60,10 @@ export const getSignedUrlSer = async (fileId: number, userId: number) => {
 
 		}
 
-		const getSignedUrl = await getObject(readResponse.dataValues.s3Key)
+		const getSignedUrl = await getObject(s3Key)
 
 		if (getSignedUrl.error) {
 			// errorHandler(res, "Failed to fetch file", 404, getSignedUrl.error);
-
 			return {
 				error: true,
 				message: getSignedUrl.message,

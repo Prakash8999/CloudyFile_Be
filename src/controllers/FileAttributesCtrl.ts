@@ -9,7 +9,7 @@ import { getObject, isFileExists, putObject } from "../utils/s3Client";
 import { v4 as uuidv4 } from 'uuid';
 import { validateContentType } from "../utils/filesMiddleware";
 import { Queue } from 'bullmq';
-import { deleteFileData, getFileAttributes } from "../services/FileAtrSer";
+import { deleteFileData, getFileAttributes, getSignedUrlSer } from "../services/FileAtrSer";
 import { paginateAndSort } from "../utils/paginationUtils";
 import redisClient from "../utils/redis";
 import { literal, Op } from "sequelize";
@@ -555,8 +555,24 @@ export const readFilesByDates = async (req: CustomRequest, res: Response) => {
 
 export const shareLinkPublic = async (req: CustomRequest, res: Response) => {
 	try {
+		console.log("req.body ", req.body)
 		const validateData = shareLinkValidator.parse(req.body)
 		const userId = req.user?.userId
+		const ifFileExist = await FileAttributes.count({
+			where: {
+				id: validateData.fileId,
+				userId: userId,
+				isDeleted: false,
+				isArchived: false
+			},
+		})
+		console.log("ifFileExist", ifFileExist)
+
+		if (ifFileExist === 0) {
+			errorHandler(res, "File not found", 404, {});
+			return;
+		}
+
 		const token = crypto.randomBytes(32).toString("hex");
 		const addData = {
 			fileId: validateData.fileId,
@@ -576,5 +592,65 @@ export const shareLinkPublic = async (req: CustomRequest, res: Response) => {
 			return
 		}
 		errorHandler(res, "Failed to create share link", 500, error.message);
+	}
+}
+
+
+
+export const readShareLink = async (req: Request, res: Response) => {
+	try {
+		const fileId = req.params.fileId
+		const token = req.query.token
+
+		if (!fileId) {
+			errorHandler(res, "File ID is required", 400, "File ID is required");
+			return
+		}
+		if (!token) {
+			errorHandler(res, "Token is required", 400, "Token is required");
+			return
+		}
+		const shareResponse = await SharedLink.findOne({ where: { fileId: fileId, token: token } })
+		if (!shareResponse) {
+			errorHandler(res, "Invalid share link", 400, "Invalid share link");
+			return
+		}
+		if (shareResponse.dataValues.expireAt && shareResponse.dataValues.expireAt < new Date()) {
+			errorHandler(res, "Link has expired", 400, "Link has expired");
+			return
+		}
+		const fileResponse = await FileAttributes.findOne({
+			where: {
+				id: fileId,
+				isArchived: false,
+				isDeleted: false
+			},
+			attributes: ['id', 'fileName', 'thumbnailUrl', 's3Key', 'fileType']
+
+		})
+
+		if (!fileResponse) {
+			errorHandler(res, "File not found", 404, "File not found");
+			return
+		}
+		const signedUrl = await getSignedUrlSer(fileResponse.dataValues.s3Key, parseInt(fileId))
+
+		if (signedUrl.error) {
+			errorHandler(res, signedUrl.message, 500, signedUrl.data || "");
+			return
+		}
+
+		const sendData = {
+			fileName: fileResponse.dataValues.fileName,
+			fileType: fileResponse.dataValues.fileType,
+			thumbnailUrl: fileResponse.dataValues.thumbnailUrl,
+			signedUrl: signedUrl.data
+		}
+
+		successHandler(res, "File read successfully", sendData, 200);
+		return
+
+	} catch (error: any) {
+		errorHandler(res, "Failed to fetch file", 500, error.message);
 	}
 }

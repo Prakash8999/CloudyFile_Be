@@ -143,7 +143,7 @@ export const SharedLink = sequelize.define("sharedLink", {
 		defaultValue: DataTypes.NOW
 	},
 	expireAt: {
-		type: DataTypes.DATE,
+		type: DataTypes.DATE.toString(),
 		allowNull: true,
 		field: "expire_at"
 	}
