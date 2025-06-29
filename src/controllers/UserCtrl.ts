@@ -350,3 +350,53 @@ export const logoutUser = async (req: CustomRequest, res: Response) => {
 		errorHandler(res, "Something went wrong", 500, error?.message)
 	}
 }
+
+
+
+
+export const userExist = async (req: CustomRequest, res: Response) => {
+	try {
+		const email = req.query.email as string;
+		if (!email) {
+			errorHandler(res, "Email is required", 400, {})
+			return
+		}
+		const validatedEmail = z.string().email().parse(email);
+		if (!validatedEmail) {
+			errorHandler(res, "Invalid email", 400, {})
+			return
+		}
+		const user = await UserModel.findOne({
+			where: {
+				email: validatedEmail,
+				block: false
+			},
+			attributes: ['id', 'email', 'fullName', 'profileUrl']
+		});
+		if (!user) {
+			errorHandler(res, "User does not exist", 404, {});
+			return;
+		}
+
+
+		if (user.dataValues.id === req.user?.userId) {
+			errorHandler(res, "You cannot share file with yourself", 400, {});
+			return;
+		}
+
+		successHandler(res, "User exists", user.dataValues, 200);
+		return;
+
+
+
+
+	} catch (error: any) {
+		console.error('User exist error', error);
+		if (error instanceof z.ZodError) {
+			const firstErrorMessage = error.errors[0]?.message || "Invalid email format";
+			errorHandler(res, firstErrorMessage, 400, "Invalid email format");
+			return;
+		}
+		errorHandler(res, "Failed to check user existence", 500, error.message);
+	}
+}

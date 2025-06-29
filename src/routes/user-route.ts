@@ -1,5 +1,5 @@
 import express from 'express';
-import { googleAuth, insertUser, loginUser, logoutUser, readUser, tokenRegen, verifyUser } from '../controllers/UserCtrl';
+import { googleAuth, insertUser, loginUser, logoutUser, readUser, tokenRegen, userExist, verifyUser } from '../controllers/UserCtrl';
 import { authUser } from '../helper/middleware/authUser';
 const router = express.Router();
 
@@ -13,5 +13,7 @@ router.post('/verify', verifyUser)
 router.get('/read', authUser, readUser)
 router.get('/regen',authUser, tokenRegen)
 router.post('/logout', authUser,logoutUser)
+
+router.get('/read-clbrtr', authUser, userExist)
 
 export default router;

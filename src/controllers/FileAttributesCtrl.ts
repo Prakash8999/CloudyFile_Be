@@ -167,7 +167,7 @@ export const confirmFileUpload = async (req: CustomRequest, res: Response) => {
 				createdAt: new Date(),
 
 			})
-			await redisClient.get(`user:fileDataVersion:${userId}`) || 1;
+			// await redisClient.get(`user:fileDataVersion:${userId}`) || 1;
 			await redisClient.get(`user:folderDataVersion:${userId}`) || 1;
 
 		}
@@ -549,6 +549,7 @@ export const readFilesByDates = async (req: CustomRequest, res: Response) => {
 		errorHandler(res, "Failed to fetch data", 500, error?.message);
 	}
 }
+
 
 
 
