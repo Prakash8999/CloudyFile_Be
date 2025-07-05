@@ -484,7 +484,7 @@ export const readFilesByDates = async (req: CustomRequest, res: Response) => {
 		if (getData) {
 			const result = JSON.parse(getData);
 			if (!result || result?.data?.length === 0) {
-				errorHandler(res, "No data found", 404, []);
+				errorHandler(res, "No latest file data found", 404, []);
 				return;
 			}
 			successHandler(res, "Data fetched successfully", result.data, 200, result.meta);

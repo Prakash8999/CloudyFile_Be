@@ -40,10 +40,12 @@ import userRoute from './src/routes/user-route';
 import uploadRoute from './src/routes/file-route'
 import FolderRoute from './src/routes/folder-route'
 import shareFileRoute from './src/routes/share-file-route';
+import StatsRoute from './src/routes/stats-route'
 app.use(`${v1Endpoint}/user`, userRoute);
 app.use(`${v1Endpoint}/file`, uploadRoute)
 app.use(`${v1Endpoint}/folder`, FolderRoute)
 app.use(`${v1Endpoint}/share-file`, shareFileRoute)
+app.use(`${v1Endpoint}/stats`, StatsRoute)
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
