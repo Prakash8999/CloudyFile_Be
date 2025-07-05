@@ -10,7 +10,7 @@ export const getFilesStats = async (req: CustomRequest, res: Response) => {
 			where: {
 				userId: userId
 			},
-			attributes: ['userId', 'fileSize', 'fileType', 'isFavorite']
+			attributes: ['userId', 'fileSize', 'fileType', 'isFavorite','createdAt']
 		})
 
 		if (files.length === 0) {

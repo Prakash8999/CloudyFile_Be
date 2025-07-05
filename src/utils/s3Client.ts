@@ -133,7 +133,7 @@ export const getObject = async (key: string) => {
 		});
 
 		const headResponse = await s3Client.send(headCommand);
-		
+
 		console.log("File exists:", headResponse.$metadata.httpStatusCode === 200);
 		if (headResponse.$metadata.httpStatusCode !== 200) {
 			console.log("File status:", headResponse.$metadata.httpStatusCode);
@@ -173,3 +173,38 @@ export const getObject = async (key: string) => {
 }
 
 // getObject("uploads/users/3/ElevenLabs_2025-04-12T15_20_06_Daniel_pre_sp97_s50_sb75_se0_b_m2.mp3_f3fa4428-04ed-4aea-aa9d-be252b42fec6")
+
+
+
+export const deleteObject = async (key: string) => {
+	try {
+		const command = new DeleteObjectCommand({
+			Bucket: process.env.BucketName!,
+			Key: key,
+		});
+		
+		const deleteData = await s3Client.send(command);
+		const statusCode = deleteData?.$metadata?.httpStatusCode;
+
+		if (statusCode === 204) {
+			return {
+				status: 200,
+				message: "File deleted successfully",
+				error: false,
+			};
+		} else {
+			return {
+				status: statusCode || 500,
+				message: "Unexpected status code received",
+				error: true,
+			};
+		}
+	} catch (error: any) {
+		console.error("Error deleting object:", error);
+		return {
+			status: 500,
+			message: error.message || "Unknown error",
+			error: true,
+		};
+	}
+};

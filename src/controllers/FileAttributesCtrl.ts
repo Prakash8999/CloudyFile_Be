@@ -5,7 +5,7 @@ import { FileAttributes, SharedLink } from "../models/FilesModel";
 import { errorHandler, successHandler } from "../helper/middleware/responseHandler";
 import { number, z } from "zod";
 import { UploadFiles } from "../interfaces/fileInterfaces";
-import { getObject, isFileExists, putObject } from "../utils/s3Client";
+import { deleteObject, getObject, isFileExists, putObject } from "../utils/s3Client";
 import { v4 as uuidv4 } from 'uuid';
 import { validateContentType } from "../utils/filesMiddleware";
 import { Queue } from 'bullmq';
@@ -83,6 +83,7 @@ export const uploadFileUrl = async (req: CustomRequest, res: Response) => {
 		}
 		const fileRecord = await FileAttributes.create(addData)
 		const incr = await redisClient.incr(`user:fileDataVersion:${userId}`);
+
 		console.log("incr ", incr)
 		const sendData = {
 			fileId: fileRecord.dataValues.id,
@@ -171,6 +172,7 @@ export const confirmFileUpload = async (req: CustomRequest, res: Response) => {
 			await redisClient.get(`user:folderDataVersion:${userId}`) || 1;
 
 		}
+		await redisClient.incr(`user:fileDataVersion:${userId}`)
 
 		successHandler(res, "File upload confirmed successfully", {}, 200);
 		return;
@@ -476,10 +478,19 @@ export const readFilesByDates = async (req: CustomRequest, res: Response) => {
 		console.log(" req , query ", req.url)
 
 		const userId = req?.user?.userId
+		const sevenDaysAgo = new Date();
+		sevenDaysAgo.setDate(new Date().getDate() - 7);
+
+		const startDate = sanitizeToYMD(rawStart?.toString() || sevenDaysAgo);
+		const defaultEndDate = new Date();
+		defaultEndDate.setDate(defaultEndDate.getDate() + 1);
+		const endDate = sanitizeToYMD(rawEnd?.toString() || defaultEndDate);
+
 
 
 		const version = await redisClient.get(`user:fileDataVersion:${userId}`) || 1;
-		const key = `fileData:${userId}:${version}:${rawStart}: ${rawEnd}: ${pageNum}:${limitNum}:${sort_by}:${sort_order}:${JSON.stringify(filters)}`;
+		const key = `fileData:${userId}:${version}:${startDate}: ${endDate}: ${pageNum}:${limitNum}:${sort_by}:${sort_order}:${JSON.stringify(filters)}`;
+		console.log("key ", key)
 		const getData = await redisClient.get(key);
 		if (getData) {
 			const result = JSON.parse(getData);
@@ -506,11 +517,6 @@ export const readFilesByDates = async (req: CustomRequest, res: Response) => {
 			!!filters.isArchived
 		}
 
-		const sevenDaysAgo = new Date();
-		sevenDaysAgo.setDate(new Date().getDate() - 7);
-
-		const startDate = sanitizeToYMD(rawStart?.toString() || sevenDaysAgo);
-		const endDate = sanitizeToYMD(rawEnd?.toString() || new Date());
 
 		const newFilters = {
 			...filters,
@@ -653,5 +659,65 @@ export const readShareLink = async (req: Request, res: Response) => {
 
 	} catch (error: any) {
 		errorHandler(res, "Failed to fetch file", 500, error.message);
+	}
+}
+
+
+
+
+export const deleteFilePermanetly = async (req: CustomRequest, res: Response) => {
+	try {
+		const fileId = req.params.id
+		const userId = req.user?.userId
+
+		const file = await FileAttributes.findOne({
+			where: {
+				id: fileId,
+				userId: userId,
+			},
+			attributes: ['id', 'fileUid', 's3Key', 'thumbnailKey']
+		})
+		if (!file) {
+			errorHandler(res, "File not found", 404, "File not found");
+			return
+		}
+		const deleteFile = await deleteObject(file?.dataValues.s3Key)
+		console.log("delete File", deleteFile)
+
+		if (deleteFile.error) {
+			errorHandler(res, deleteFile.message, deleteFile.status, {});
+			return
+		}
+    console.log("file.dataValues.thumbnailKey ", file.dataValues)
+		const deleteThumbnail = await deleteObject(file.dataValues.thumbnailKey)
+		console.log("deleteThumbnail ", deleteThumbnail)
+
+		await file.destroy()
+
+		const ifFileExistInFolder = await FolderFileMap.count({
+			where: {
+				fileId: fileId
+			}
+		})
+
+		if (ifFileExistInFolder > 0) {
+			await FolderFileMap.destroy({
+				where: {
+					fileId: fileId
+				}
+			})
+		}
+
+
+
+		await redisClient.incr(`user:fileDataVersion:${userId}`);
+
+		successHandler(res, "File deleted successfully", {}, 200);
+
+
+	} catch (error:any) {
+		console.log("error ", error)
+		errorHandler(res, "Failed to delete file", 500, error.message);
+
 	}
 }
