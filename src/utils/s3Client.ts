@@ -1,4 +1,4 @@
-import { GetObjectCommand, S3Client, PutObjectCommand, ListObjectsV2Command, DeleteBucketCommand, DeleteObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
+import { GetObjectCommand, S3Client, PutObjectCommand, ListObjectsV2Command, DeleteBucketCommand, DeleteObjectCommand, HeadObjectCommand, DeleteObjectsCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { config } from 'dotenv'
 import { UploadFiles } from "../interfaces/fileInterfaces";
@@ -172,21 +172,33 @@ export const getObject = async (key: string) => {
 	}
 }
 
-// getObject("uploads/users/3/ElevenLabs_2025-04-12T15_20_06_Daniel_pre_sp97_s50_sb75_se0_b_m2.mp3_f3fa4428-04ed-4aea-aa9d-be252b42fec6")
+// getObject("uploads/users/3/inyoung-jung-IfyQek9noDU-unsplash.jpg_c39dbbef-fce9-48ac-8a12-29f533066526")
 
 
 
-export const deleteObject = async (key: string) => {
+export const deleteObject = async (keys: string[], BucketName:string) => {
 	try {
-		const command = new DeleteObjectCommand({
-			Bucket: process.env.BucketName!,
-			Key: key,
-		});
+		// const command = new DeleteObjectCommand({
+		// 	Bucket: process.env.BucketName!,
+		// 	Key: key,
 		
+		// });
+		const command = new DeleteObjectsCommand({
+			Bucket: BucketName,
+			Delete: {
+				Objects: keys.map((key) => ({ Key: key })),
+				Quiet: false, // Set true if you don't need list of deleted keys
+			},
+		});
+
+
+
+
 		const deleteData = await s3Client.send(command);
+		console.log("deleteData ", deleteData)
 		const statusCode = deleteData?.$metadata?.httpStatusCode;
 
-		if (statusCode === 204) {
+		if (statusCode === 204 || statusCode === 200) {
 			return {
 				status: 200,
 				message: "File deleted successfully",

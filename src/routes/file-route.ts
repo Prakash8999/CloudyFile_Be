@@ -15,7 +15,7 @@ router.get('/read-latest',authUser, readFilesByDates)
 
 router.post('/share-link', authUser, shareLinkPublic)
 router.get('/read-public-link/:fileId', readShareLink)
-router.delete('/delete-permanently/:id',authUser, deleteFilePermanetly)
+router.post('/delete-permanently',authUser, deleteFilePermanetly)
 
 
 

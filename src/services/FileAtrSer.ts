@@ -1,3 +1,4 @@
+import { Op } from "sequelize";
 import { errorHandler } from "../helper/middleware/responseHandler";
 import { FileAttributes } from "../models/FilesModel";
 import redisClient from "../utils/redis";
@@ -40,7 +41,7 @@ export const getFileAttributes = async (fileId: number, userId: number) => {
 
 
 
-export const getSignedUrlSer = async (s3Key: string, fileId: number ) => {
+export const getSignedUrlSer = async (s3Key: string, fileId: number) => {
 	try {
 
 		const key = `signedUrl:${"share"}:${fileId}`
@@ -86,6 +87,87 @@ export const getSignedUrlSer = async (s3Key: string, fileId: number ) => {
 			message: "Error during file read",
 			data: error.message,
 			status: 500
+		}
+
+	}
+}
+
+
+
+
+
+export const validateDeleteFileIds = async (Ids: number[], userId: number) => {
+	try {
+
+		if (
+			!Array.isArray(Ids) ||
+			Ids.length === 0 ||
+			!Ids.every(id => typeof id === "number" && !isNaN(id))
+		) {
+			// errorHandler(res, "Invalid file IDs. Please provide a non-empty array of numbers.", 400, {});
+			return {
+				error: true,
+				message: "Invalid file IDs. Please provide a non-empty array of numbers.",
+				statusCode: 400,
+				data: []
+			}
+		}
+
+		const idSet = new Set(Ids)
+
+		console.log(
+			idSet + "id set")
+
+		const ids = [...idSet]
+
+		console.log(" ids ", ids)
+
+		const filesBelongto = await FileAttributes.findAll({
+			where: {
+				userId: userId,
+				id: {
+					[Op.in]: ids
+				}
+			},
+			attributes: ['id', 'fileUid', 's3Key', 'thumbnailKey'],
+			raw:true,
+			nest: true
+		})
+
+		if (filesBelongto.length === 0) {
+			return {
+				error: true,
+				message: "No files found to delete",
+				data: [],
+				statusCode: 404
+			}
+		}
+
+
+		if (filesBelongto.length > 10) {
+			// errorHandler(res,"You can delete up to 10 files at a time", 400, {})
+			return {
+				error: true,
+				message: "You can delete up to 10 files at a time",
+				statusCode: 400,
+				data: []
+			}
+		}
+
+		return {
+			error: false,
+			message: "",
+			data: filesBelongto,
+			statusCode: 200
+		}
+
+
+	} catch (error: any) {
+		return {
+			error: true,
+			message: error.message,
+			data: [],
+			statusCode: 500
 		}
 
 	}

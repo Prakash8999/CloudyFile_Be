@@ -9,7 +9,7 @@ import { deleteObject, getObject, isFileExists, putObject } from "../utils/s3Cli
 import { v4 as uuidv4 } from 'uuid';
 import { validateContentType } from "../utils/filesMiddleware";
 import { Queue } from 'bullmq';
-import { deleteFileData, getFileAttributes, getSignedUrlSer } from "../services/FileAtrSer";
+import { deleteFileData, getFileAttributes, getSignedUrlSer, validateDeleteFileIds } from "../services/FileAtrSer";
 import { paginateAndSort } from "../utils/paginationUtils";
 import redisClient from "../utils/redis";
 import { literal, Op } from "sequelize";
@@ -667,43 +667,73 @@ export const readShareLink = async (req: Request, res: Response) => {
 
 export const deleteFilePermanetly = async (req: CustomRequest, res: Response) => {
 	try {
-		const fileId = req.params.id
-		const userId = req.user?.userId
 
-		const file = await FileAttributes.findOne({
-			where: {
-				id: fileId,
-				userId: userId,
-			},
-			attributes: ['id', 'fileUid', 's3Key', 'thumbnailKey']
-		})
-		if (!file) {
-			errorHandler(res, "File not found", 404, "File not found");
+		const fileIds = req.body.ids
+		const userId = req.user?.userId
+		const validateFiles = await validateDeleteFileIds(fileIds, userId!)
+		if (validateFiles.error) {
+			errorHandler(res, validateFiles.message, validateFiles.statusCode, {})
 			return
 		}
-		const deleteFile = await deleteObject(file?.dataValues.s3Key)
+
+		// 		if (fileIds.length > 10) {
+		//   // Add job to queue here (assumed to be done already)
+
+		//   return successHandler(
+		//     res,
+		//     "We're deleting your files in the background. You can leave the page — we'll notify you once it's done.",
+		//     {},
+		//     202 // 202 Accepted = request accepted for processing but not yet completed
+		//   );
+		// }
+
+		console.log("file data ", validateFiles)
+
+		const ogFilesKey = validateFiles.data.map((file: any) => file.s3Key)
+		const filesIds = validateFiles.data.map((file: any) => file.id)
+		const thumbnailKeys = validateFiles.data
+			.map((file: any) => file.thumbnailKey)
+			.filter((key: any) => key != null);
+
+		const deleteFile = await deleteObject(ogFilesKey, process.env.BucketName!)
 		console.log("delete File", deleteFile)
 
 		if (deleteFile.error) {
 			errorHandler(res, deleteFile.message, deleteFile.status, {});
 			return
 		}
-    console.log("file.dataValues.thumbnailKey ", file.dataValues)
-		const deleteThumbnail = await deleteObject(file.dataValues.thumbnailKey)
-		console.log("deleteThumbnail ", deleteThumbnail)
 
-		await file.destroy()
+		// const delete
+		if (thumbnailKeys.length > 0) {
+			const deleteThumbnail = await deleteObject(thumbnailKeys, process.env.PublicBucketName!)
+			console.log("deleteThumbnail ", deleteThumbnail)
+
+		}
+
+		await FileAttributes.destroy({
+			where: {
+				id: {
+					[Op.in]: filesIds
+				}
+			}
+		})
+
+
 
 		const ifFileExistInFolder = await FolderFileMap.count({
 			where: {
-				fileId: fileId
+				fileId: {
+					[Op.in]: filesIds
+				}
 			}
 		})
 
 		if (ifFileExistInFolder > 0) {
 			await FolderFileMap.destroy({
 				where: {
-					fileId: fileId
+					fileId: {
+						[Op.in]: filesIds
+					}
 				}
 			})
 		}
@@ -715,7 +745,7 @@ export const deleteFilePermanetly = async (req: CustomRequest, res: Response) =>
 		successHandler(res, "File deleted successfully", {}, 200);
 
 
-	} catch (error:any) {
+	} catch (error: any) {
 		console.log("error ", error)
 		errorHandler(res, "Failed to delete file", 500, error.message);
 

@@ -15,6 +15,7 @@ export const validateFileSize = async (req: CustomRequest, res: Response, next: 
 		}
 
 		const fileSizeMb = fileSize / (1024 * 1024)
+		console.log("file SizeMb", fileSizeMb)
 
 		if (fileSizeMb > 100) {
 			errorHandler(res, "File size is too large! Maximum allowed size is 100MB", 400, {});
@@ -37,13 +38,16 @@ export const validateFileSize = async (req: CustomRequest, res: Response, next: 
 			return total + file.dataValues.fileSize
 		}, 0)
 
-		if (totalUsedSize + fileSizeMb > freeFileSizeLimit) {
+		const totalUsedSizeMb = totalUsedSize / (1024 * 1024)
+
+		console.log( "totalUsedSize", totalUsedSizeMb , fileSizeMb)
+		if (totalUsedSizeMb + fileSizeMb > freeFileSizeLimit) {
 			errorHandler(res, "File size limit exceeded", 400, {});
 			return
 		}
 
 
-		if (totalUsedSize >= freeFileSizeLimit) {
+		if (totalUsedSizeMb >= freeFileSizeLimit) {
 			errorHandler(res, "You have reached your file size limit! Please upgrade your plan to upload more files.", 400, {});
 			return
 		}
