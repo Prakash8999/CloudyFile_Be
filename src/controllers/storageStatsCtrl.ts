@@ -14,7 +14,7 @@ export const getFilesStats = async (req: CustomRequest, res: Response) => {
 		})
 
 		if (files.length === 0) {
-			successHandler(res, "", {}, 200)
+			successHandler(res, "", [], 200)
 			return
 		}
 
