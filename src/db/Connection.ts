@@ -3,7 +3,7 @@ import { dbConnection } from "./PostgreSQL";
 
 // const sequelize = new Sequelize(dbConnection.local)
 // const sequelize = new Sequelize(dbConnection.supabase)
-const sequelize = new Sequelize("postgresql://postgres.uyklwqnzzlxsgugjqcoh:12345rtytfgwhjskdjhjskjdh2w@aws-0-ap-south-1.pooler.supabase.com:6543/postgres", {
+const sequelize = new Sequelize(process.env.DB_URI!, {
   dialect: "postgres",
   dialectOptions: {
     ssl: {
