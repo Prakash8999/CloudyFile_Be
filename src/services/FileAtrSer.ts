@@ -144,16 +144,6 @@ export const validateDeleteFileIds = async (Ids: number[], userId: number) => {
 		}
 
 
-		if (filesBelongto.length > 10) {
-			// errorHandler(res,"You can delete up to 10 files at a time", 400, {})
-			return {
-				error: true,
-				message: "You can delete up to 10 files at a time",
-				statusCode: 400,
-				data: []
-			}
-		}
-
 		return {
 			error: false,
 			message: "",

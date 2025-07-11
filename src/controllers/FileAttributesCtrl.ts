@@ -90,7 +90,6 @@ export const uploadFileUrl = async (req: CustomRequest, res: Response) => {
 			uploadUrl: uploadUrl.signedUrl,
 		}
 		successHandler(res, "Upload URL generated successfully", sendData, 200)
-		return
 	} catch (error: any) {
 		if (error instanceof z.ZodError) {
 			const message = error.errors[0].message || "Invalid request body"
@@ -665,7 +664,7 @@ export const readShareLink = async (req: Request, res: Response) => {
 
 
 
-export const deleteFilePermanetly = async (req: CustomRequest, res: Response) => {
+export const deleteFilePermanently = async (req: CustomRequest, res: Response) => {
 	try {
 
 		const fileIds = req.body.ids
@@ -687,10 +686,31 @@ export const deleteFilePermanetly = async (req: CustomRequest, res: Response) =>
 		//   );
 		// }
 
+
+
+		const filesIds = validateFiles.data.map((file: any) => file.id)
+		if (validateFiles.data.length > 1) {
+			
+			const deleteFilesQueue = new Queue('delete-files-permanently', {
+				connection: {
+					url: process.env.REDIS_URI,
+				},
+			});
+			
+			await deleteFilesQueue.add('delete-files-permanently', {
+				fileIds: filesIds,
+			});
+			
+			successHandler(res, "Files are being deleted in the background! You will be notified once it's done", {}, 202);
+			await redisClient.del(`user:fileDataVersion:${userId}`);
+
+			return
+		}
+
+
 		console.log("file data ", validateFiles)
 
 		const ogFilesKey = validateFiles.data.map((file: any) => file.s3Key)
-		const filesIds = validateFiles.data.map((file: any) => file.id)
 		const thumbnailKeys = validateFiles.data
 			.map((file: any) => file.thumbnailKey)
 			.filter((key: any) => key != null);
@@ -751,3 +771,19 @@ export const deleteFilePermanetly = async (req: CustomRequest, res: Response) =>
 
 	}
 }
+
+
+
+// const worker = async () => {
+// 	const deleteFilesQueue = new Queue('delete-files-permanently', {
+// 		connection: {
+// 			url: process.env.REDIS_URI,
+// 		},
+// 	});
+
+// 	await deleteFilesQueue.add('delete-files-permanently', {
+// 		fileIds: [12],
+// 	});
+// }
+
+// worker()

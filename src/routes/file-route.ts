@@ -1,5 +1,5 @@
 import  express  from "express";
-import { confirmFileUpload, deleteFilePermanetly, getFileSignedUrl, readFiles, readFilesByDates, readShareLink, shareLinkPublic, updateFavouriteStatus, uploadFileUrl } from "../controllers/FileAttributesCtrl";
+import { confirmFileUpload, deleteFilePermanently, getFileSignedUrl, readFiles, readFilesByDates, readShareLink, shareLinkPublic, updateFavouriteStatus, uploadFileUrl } from "../controllers/FileAttributesCtrl";
 import { authUser } from "../helper/middleware/authUser";
 import { validateFileSize } from "../helper/middleware/fileMiddleware";
 
@@ -15,7 +15,7 @@ router.get('/read-latest',authUser, readFilesByDates)
 
 router.post('/share-link', authUser, shareLinkPublic)
 router.get('/read-public-link/:fileId', readShareLink)
-router.post('/delete-permanently',authUser, deleteFilePermanetly)
+router.post('/delete-permanently',authUser, deleteFilePermanently)
 
 
 
