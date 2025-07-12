@@ -1,0 +1,20 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = __importDefault(require("express"));
+const FileAttributesCtrl_1 = require("../controllers/FileAttributesCtrl");
+const authUser_1 = require("../helper/middleware/authUser");
+const fileMiddleware_1 = require("../helper/middleware/fileMiddleware");
+const router = express_1.default.Router();
+router.post('/upload', authUser_1.authUser, fileMiddleware_1.validateFileSize, FileAttributesCtrl_1.uploadFileUrl);
+router.post('/upload/confirm', authUser_1.authUser, FileAttributesCtrl_1.confirmFileUpload);
+router.get('/read', authUser_1.authUser, FileAttributesCtrl_1.readFiles);
+router.get('/read/:id', authUser_1.authUser, FileAttributesCtrl_1.getFileSignedUrl);
+router.patch('/change-status/:fileId', authUser_1.authUser, FileAttributesCtrl_1.updateFavouriteStatus);
+router.get('/read-latest', authUser_1.authUser, FileAttributesCtrl_1.readFilesByDates);
+router.post('/share-link', authUser_1.authUser, FileAttributesCtrl_1.shareLinkPublic);
+router.get('/read-public-link/:fileId', FileAttributesCtrl_1.readShareLink);
+router.post('/delete-permanently', authUser_1.authUser, FileAttributesCtrl_1.deleteFilePermanently);
+exports.default = router;
