@@ -68,7 +68,7 @@ export const uploadFileUrl = async (req: CustomRequest, res: Response) => {
 		const uploadUrl = await putObject(fileData)
 		if (uploadUrl.error) {
 			errorHandler(res, "Failed to generate upload URL", 500, uploadUrl.message)
-			return
+			return;
 		}
 
 		const addData = {
@@ -115,8 +115,8 @@ export const confirmFileUpload = async (req: CustomRequest, res: Response) => {
 		});
 
 		if (!validatedData.success) {
-			errorHandler(res, "Failed to upload file", 400, {});
 			await deleteFileData(validatedData.fileId, userId!);
+			errorHandler(res, "Failed to upload file", 400, {});
 			return;
 		}
 
@@ -126,8 +126,8 @@ export const confirmFileUpload = async (req: CustomRequest, res: Response) => {
 		}
 		const checkFileExists = await isFileExists(responseData.dataValues.s3Key);
 		if (!checkFileExists) {
-			errorHandler(res, "Failed to confirm file upload", 400, {});
 			await deleteFileData(validatedData.fileId, userId!);
+			errorHandler(res, "Failed to confirm file upload", 400, {});
 			return;
 		}
 
@@ -174,7 +174,6 @@ export const confirmFileUpload = async (req: CustomRequest, res: Response) => {
 		await redisClient.incr(`user:fileDataVersion:${userId}`)
 
 		successHandler(res, "File upload confirmed successfully", {}, 200);
-		return;
 
 	} catch (error: any) {
 		console.log("Error during file upload confirmation ", error);
@@ -185,7 +184,6 @@ export const confirmFileUpload = async (req: CustomRequest, res: Response) => {
 			return;
 		}
 		errorHandler(res, "Internal server error", 500, error?.message);
-		return;
 	}
 }
 
@@ -211,9 +209,11 @@ export const readFiles = async (req: CustomRequest, res: Response) => {
 
 
 		const version = await redisClient.get(`user:fileDataVersion:${userId}`) || 1;
-		console.log("version ", version);
-		const key = `fileData:${userId}:${version}:${pageNum}:${limitNum}:${sort_by}:${sort_order}:${JSON.stringify(filters)}`;
+		const deleteVersion = await redisClient.get(`user:fileDeleteVersion:${userId}`) || 1
+		console.log("delete version ", deleteVersion)
+		const key = `fileData:${userId}:${version}:${deleteVersion}:${pageNum}:${limitNum}:${sort_by}:${sort_order}:${JSON.stringify(filters)}`;
 		const getData = await redisClient.get(key);
+		console.log(" get data ", getData);
 		if (getData) {
 			const result = JSON.parse(getData);
 			if (!result || result?.data?.length === 0) {
@@ -485,12 +485,12 @@ export const readFilesByDates = async (req: CustomRequest, res: Response) => {
 		defaultEndDate.setDate(defaultEndDate.getDate() + 1);
 		const endDate = sanitizeToYMD(rawEnd?.toString() || defaultEndDate);
 
-
-
+		const deleteVersion = await redisClient.get(`user:fileDeleteVersion:${userId}`) || 1
 		const version = await redisClient.get(`user:fileDataVersion:${userId}`) || 1;
-		const key = `fileData:${userId}:${version}:${startDate}: ${endDate}: ${pageNum}:${limitNum}:${sort_by}:${sort_order}:${JSON.stringify(filters)}`;
-		console.log("key ", key)
+
+		const key = `fileData:${userId}:${version}:${deleteVersion}:${startDate}:${endDate}:${pageNum}:${limitNum}:${sort_by}:${sort_order}:${JSON.stringify(filters)}`;
 		const getData = await redisClient.get(key);
+
 		if (getData) {
 			const result = JSON.parse(getData);
 			if (!result || result?.data?.length === 0) {
@@ -689,18 +689,26 @@ export const deleteFilePermanently = async (req: CustomRequest, res: Response) =
 
 
 		const filesIds = validateFiles.data.map((file: any) => file.id)
-		if (validateFiles.data.length > 1) {
-			
+		if (validateFiles.data.length > 10) {
+
 			const deleteFilesQueue = new Queue('delete-files-permanently', {
 				connection: {
 					url: process.env.REDIS_URI,
 				},
 			});
-			
+
 			await deleteFilesQueue.add('delete-files-permanently', {
 				fileIds: filesIds,
+				userId: userId,
+			}, {
+				removeOnComplete: {
+					age: 300, 
+				},
+				removeOnFail: {
+					age: 1200, 
+				},
 			});
-			
+
 			successHandler(res, "Files are being deleted in the background! You will be notified once it's done", {}, 202);
 			await redisClient.del(`user:fileDataVersion:${userId}`);
 
@@ -761,6 +769,7 @@ export const deleteFilePermanently = async (req: CustomRequest, res: Response) =
 
 
 		await redisClient.incr(`user:fileDataVersion:${userId}`);
+		await redisClient.incr(`user:fileDeleteVersion:${userId}`);
 
 		successHandler(res, "File deleted successfully", {}, 200);
 
@@ -775,15 +784,20 @@ export const deleteFilePermanently = async (req: CustomRequest, res: Response) =
 
 
 // const worker = async () => {
-// 	const deleteFilesQueue = new Queue('delete-files-permanently', {
-// 		connection: {
-// 			url: process.env.REDIS_URI,
-// 		},
-// 	});
+// 	const version = await redisClient.get(`user:fileDeleteVersion:${3}`);
+// 	console.log("version ", version)
 
-// 	await deleteFilesQueue.add('delete-files-permanently', {
-// 		fileIds: [12],
-// 	});
+// 	// const deleteFilesQueue = new Queue('delete-files-permanently', {
+// 	// 	connection: {
+// 	// 		url: process.env.REDIS_URI,
+// 	// 	},
+// 	// });
+
+// 	// await deleteFilesQueue.add('delete-files-permanently', {
+// 	// 	fileIds: [12,13,14],
+// 	// 	userId: 3,
+// 	// 	// version:version
+// 	// });
 // }
 
 // worker()
