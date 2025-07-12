@@ -10,7 +10,7 @@ app.use(express.json());
 app.use(cookieParser())
 app.use(cors({
   origin: "https://cloudy-file.vercel.app",
-  // methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }))
 app.options('*', cors({
