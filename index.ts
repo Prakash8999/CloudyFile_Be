@@ -6,7 +6,7 @@ import cookieParser from 'cookie-parser'
 const app = express();
 dotenv.config()
 app.use(express.json());
-app.use(helmet())
+// app.use(helmet())
 app.use(cookieParser())
 app.use(cors({
   origin: "https://cloudy-file.vercel.app",
