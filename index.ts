@@ -9,7 +9,7 @@ app.use(express.json());
 app.use(helmet())
 app.use(cookieParser())
 app.use(cors({
-  origin: ['http://localhost:5173','http://localhost:4173','https://cloudy-file.vercel.app'],
+  origin: "https://cloudy-file.vercel.app",
   // methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }))
