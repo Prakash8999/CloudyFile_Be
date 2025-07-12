@@ -582,6 +582,11 @@
     "@smithy/types" "^4.2.0"
     tslib "^2.6.2"
 
+"@codegenie/serverless-express@^4.12.5":
+  version "4.17.0"
+  resolved "https://registry.npmjs.org/@codegenie/serverless-express/-/serverless-express-4.17.0.tgz"
+  integrity sha512-KebLJ34yHNWFoC9D+iF1Ft+6T8hj0mdylP9d2SFERNuVPOc6UqAvgxm9mY6r2V3wCJ+BPpG2vEHihpUtCT3dEg==
+
 "@cspotcode/source-map-support@^0.8.0":
   version "0.8.1"
   resolved "https://registry.npmjs.org/@cspotcode/source-map-support/-/source-map-support-0.8.1.tgz"
@@ -1498,6 +1503,13 @@
   version "13.15.0"
   resolved "https://registry.npmjs.org/@types/validator/-/validator-13.15.0.tgz"
   integrity sha512-nh7nrWhLr6CBq9ldtw0wx+z9wKnnv/uTVLA9g/3/TcOYxbpOSZE+MhKPmWqU+K0NvThjhv12uD8MuqijB0WzEA==
+
+"@vendia/serverless-express@^4.12.6":
+  version "4.12.6"
+  resolved "https://registry.npmjs.org/@vendia/serverless-express/-/serverless-express-4.12.6.tgz"
+  integrity sha512-ePsIPk3VQwgm5nh/JGBtTKQs5ZOF7REjHxC+PKk/CHvhlKQkJuUU365uPOlxuLJhC+BAefDznDRReWxpnKjmYg==
+  dependencies:
+    "@codegenie/serverless-express" "^4.12.5"
 
 "@vercel/build-utils@10.6.6":
   version "10.6.6"

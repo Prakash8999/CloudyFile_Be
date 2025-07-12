@@ -1,12 +1,5 @@
-// api/index.ts (entrypoint for Vercel)
+// api/index.ts
+import app from '../app';
+import serverlessExpress from '@vendia/serverless-express';
 
-import expressApp from '../app'; // your current express config
-
-import { createServer } from 'http';
-import { parse } from 'url';
-import { VercelRequest, VercelResponse } from '@vercel/node';
-
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const server = createServer(expressApp);
-  server.emit('request', req, res);
-}
+export default serverlessExpress({ app });
