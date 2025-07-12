@@ -51,10 +51,11 @@ app.use((0, cors_1.default)({
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true
 }));
-// app.options('*', cors({
-//   origin: "https://cloudy-file.vercel.app",
-//   credentials: true
-// }));
+app.use(function (request, response, next) {
+    response.header("Access-Control-Allow-Origin", "*");
+    response.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+    next();
+});
 const PORT = process.env.PORT || 4000;
 const v1Endpoint = '/api/v1';
 // import redisClient, { connectRedis } from './';

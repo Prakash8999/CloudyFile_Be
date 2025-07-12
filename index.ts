@@ -1,4 +1,4 @@
-import express, { Request, Response } from 'express';
+import express, { NextFunction, Request, Response } from 'express';
 import dotenv from 'dotenv'
 import cors from 'cors';
 import helmet from 'helmet';
@@ -14,10 +14,11 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }))
-// app.options('*', cors({
-//   origin: "https://cloudy-file.vercel.app",
-//   credentials: true
-// }));
+app.use(function (request:Request, response: Response, next:NextFunction) {
+  response.header("Access-Control-Allow-Origin", "*");
+  response.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+  next();
+});
 
 const PORT = process.env.PORT || 4000;
 const v1Endpoint = '/api/v1'
