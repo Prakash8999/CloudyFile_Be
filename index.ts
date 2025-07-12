@@ -13,6 +13,10 @@ app.use(cors({
   // methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }))
+app.options('*', cors({
+  origin: "https://cloudy-file.vercel.app",
+  credentials: true
+}));
 
 const PORT = process.env.PORT || 4000;
 const v1Endpoint = '/api/v1'
