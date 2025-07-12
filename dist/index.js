@@ -46,14 +46,15 @@ app.use(express_1.default.json());
 // app.use(helmet())
 app.use((0, cookie_parser_1.default)());
 app.use((0, cors_1.default)({
-    origin: "https://cloudy-file.vercel.app",
+    // origin: "https://cloudy-file.vercel.app",
+    origin: "*",
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true
 }));
-app.options('*', (0, cors_1.default)({
-    origin: "https://cloudy-file.vercel.app",
-    credentials: true
-}));
+// app.options('*', cors({
+//   origin: "https://cloudy-file.vercel.app",
+//   credentials: true
+// }));
 const PORT = process.env.PORT || 4000;
 const v1Endpoint = '/api/v1';
 // import redisClient, { connectRedis } from './';
