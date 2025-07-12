@@ -1,4 +1,4 @@
-import express, { NextFunction, Request, Response } from 'express';
+import express, { Request, Response } from 'express';
 import dotenv from 'dotenv'
 import cors from 'cors';
 import helmet from 'helmet';
@@ -6,19 +6,17 @@ import cookieParser from 'cookie-parser'
 const app = express();
 dotenv.config()
 app.use(express.json());
-// app.use(helmet())
+app.use(helmet())
 app.use(cookieParser())
 app.use(cors({
-  // origin: "https://cloudy-file.vercel.app",
-  origin: "*",
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  origin: "https://cloudy-file.vercel.app",
+  // methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }))
-app.use(function (request:Request, response: Response, next:NextFunction) {
-  response.header("Access-Control-Allow-Origin", "*");
-  response.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-  next();
-});
+// app.options('*', cors({
+//   origin: "https://cloudy-file.vercel.app",
+//   credentials: true
+// }));
 
 const PORT = process.env.PORT || 4000;
 const v1Endpoint = '/api/v1'

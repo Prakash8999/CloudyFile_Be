@@ -39,23 +39,22 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const cors_1 = __importDefault(require("cors"));
+const helmet_1 = __importDefault(require("helmet"));
 const cookie_parser_1 = __importDefault(require("cookie-parser"));
 const app = (0, express_1.default)();
 dotenv_1.default.config();
 app.use(express_1.default.json());
-// app.use(helmet())
+app.use((0, helmet_1.default)());
 app.use((0, cookie_parser_1.default)());
 app.use((0, cors_1.default)({
-    // origin: "https://cloudy-file.vercel.app",
-    origin: "*",
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    origin: "https://cloudy-file.vercel.app",
+    // methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true
 }));
-app.use(function (request, response, next) {
-    response.header("Access-Control-Allow-Origin", "*");
-    response.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-    next();
-});
+// app.options('*', cors({
+//   origin: "https://cloudy-file.vercel.app",
+//   credentials: true
+// }));
 const PORT = process.env.PORT || 4000;
 const v1Endpoint = '/api/v1';
 // import redisClient, { connectRedis } from './';
