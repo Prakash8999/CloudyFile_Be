@@ -10,6 +10,7 @@ app.use(helmet())
 app.use(cookieParser())
 app.use(cors({
   origin: "https://cloudy-file.vercel.app",
+  // origin: "*",
   // methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }))

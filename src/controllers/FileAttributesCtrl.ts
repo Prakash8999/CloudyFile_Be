@@ -90,6 +90,7 @@ export const uploadFileUrl = async (req: CustomRequest, res: Response) => {
 			uploadUrl: uploadUrl.signedUrl,
 		}
 		successHandler(res, "Upload URL generated successfully", sendData, 200)
+		return
 	} catch (error: any) {
 		if (error instanceof z.ZodError) {
 			const message = error.errors[0].message || "Invalid request body"
@@ -195,7 +196,7 @@ export const readFiles = async (req: CustomRequest, res: Response) => {
 	try {
 		const {
 			page = 1,
-			limit = 20,
+			limit = 2000,
 			sort_by = "id",
 			fileIds = "",
 			sort_order = "DESC",
@@ -206,6 +207,7 @@ export const readFiles = async (req: CustomRequest, res: Response) => {
 		const limitNum = parseInt(limit as string, 10);
 
 		const userId = req?.user?.userId
+		console.log("filetes ", filters)
 
 
 		const version = await redisClient.get(`user:fileDataVersion:${userId}`) || 1;
