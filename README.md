@@ -31,3 +31,7 @@ Database: MySQL + Prisma ORM
 Queue & Cache: Redis + BullMQ
 Storage: AWS S3 (Pre-signed uploads)
 Image Processing: AWS Lambda + Sharp
+
+
+npm install
+npm run dev
